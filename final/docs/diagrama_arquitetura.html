@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arquitetura EnergIA</title>
+<meta name="description" content="Guia didático da arquitetura do EnergIA: o que é, como os dados fluem do sensor ao dashboard, por que usamos NILM com Random Forest, e um dicionário de termos.">
+<style>
+:root{
+  --bg:#f3f1ea; --card:#ffffff; --card2:#faf8f2; --ink:#1b1a16; --mut:#6b6f76; --ln:#e3ddd0;
+  --ac:#bd7a12; --ac-ink:#8a5a0e; --ac-soft:#f6ead2; --good:#2f8f5b;
+  --font:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; --mono:ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1115; --card:#171a21; --card2:#1d212a; --ink:#eef1f6; --mut:#9aa3b2; --ln:#262b35;
+  --ac:#e0a94a; --ac-ink:#f0c27a; --ac-soft:#2a2416; --good:#5cba8a;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --card:#171a21; --card2:#1d212a; --ink:#eef1f6; --mut:#9aa3b2; --ln:#262b35;
+  --ac:#e0a94a; --ac-ink:#f0c27a; --ac-soft:#2a2416; --good:#5cba8a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.58}
+.wrap{max-width:1040px;margin:0 auto;padding:34px 16px 60px}
+h1{font-size:27px;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--mut);font-size:14.5px;margin:0 0 26px;max-width:70ch}
+h2{font-size:19px;margin:34px 0 12px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+h2 .b{font-size:12px;background:var(--ac-soft);color:var(--ac-ink);padding:2px 9px;border-radius:999px;font-weight:700}
+.panel{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:18px 20px}
+.panel p{margin:0 0 10px}.panel p:last-child{margin:0}
+.panel .big{font-size:15px}
+mark{background:var(--ac-soft);color:var(--ac-ink);padding:0 4px;border-radius:4px;font-weight:600}
+
+/* pipeline */
+.pipe{display:flex;flex-wrap:wrap;align-items:stretch;justify-content:center;margin-top:6px}
+.stage{flex:1 1 170px;min-width:150px;max-width:200px;background:var(--card);border:1px solid var(--ln);
+  border-radius:16px;padding:16px 13px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;position:relative}
+.stage:hover{transform:translateY(-3px)}
+.stage.active{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-soft),0 10px 30px #0003}
+.stage .ico{font-size:28px;line-height:1}
+.stage .n{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin-top:8px}
+.stage .t{font-weight:700;font-size:14.5px;margin-top:3px}
+.stage .r{font-size:11px;color:var(--mut);margin-top:4px}
+.arrow{align-self:center;color:var(--ac);font-size:20px;padding:0 5px;flex:0 0 auto}
+.arrow span{display:inline-block;animation:flow 1.6s infinite}
+.arrow:nth-of-type(2) span{animation-delay:.2s}.arrow:nth-of-type(4) span{animation-delay:.4s}
+.arrow:nth-of-type(6) span{animation-delay:.6s}.arrow:nth-of-type(8) span{animation-delay:.8s}
+@keyframes flow{0%,100%{opacity:.25;transform:translateX(0)}50%{opacity:1;transform:translateX(3px)}}
+.detail{margin-top:18px;background:var(--card);border:1px solid var(--ln);border-left:4px solid var(--ac);
+  border-radius:12px;padding:16px 18px;min-height:72px}
+.detail h3{margin:0 0 5px;font-size:16px;color:var(--ac-ink)}
+.detail p{margin:0;font-size:14px}
+.detail .tag{display:inline-block;font-family:var(--mono);font-size:11px;background:var(--ac-soft);
+  color:var(--ac-ink);padding:2px 8px;border-radius:6px;margin-top:9px}
+.hint{color:var(--mut);font-size:12px;margin-top:10px}
+pre{background:var(--card2);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;overflow:auto;
+  font-family:var(--mono);font-size:12.5px;color:var(--ink);margin:12px 0 0}
+
+/* "porquê" cards */
+.why{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.why .card2{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:16px 18px}
+.why h3{margin:0 0 8px;font-size:15px}
+.why ul{margin:0;padding-left:18px}.why li{margin:5px 0;font-size:13.5px}
+.why li b{color:var(--ac-ink)}
+
+/* glossário */
+.glos{background:var(--card);border:1px solid var(--ln);border-radius:14px;overflow:hidden}
+.grp{padding:6px 18px 12px}
+.grp h3{font-size:14px;margin:14px 0 6px;color:var(--ac-ink);display:flex;align-items:center;gap:8px}
+.grp h3 .e{font-size:10px;background:var(--ac-soft);padding:2px 8px;border-radius:999px;letter-spacing:.08em;text-transform:uppercase}
+.def{display:grid;grid-template-columns:200px 1fr;gap:4px 16px;padding:8px 0;border-top:1px solid var(--ln)}
+.def dt{font-weight:700;font-size:13.5px}.def dd{margin:0;font-size:13.5px;color:var(--ink)}
+.def dd .mono{font-family:var(--mono);font-size:12px;color:var(--mut)}
+footer{margin-top:30px;border-top:1px solid var(--ln);padding-top:14px;color:var(--mut);font-size:12px}
+@media (max-width:760px){
+  .pipe{flex-direction:column;align-items:stretch}.stage{max-width:none}
+  .arrow{transform:rotate(90deg);padding:4px 0}
+  .why{grid-template-columns:1fr}
+  .def{grid-template-columns:1fr;gap:2px}
+  .def dt{color:var(--ac-ink)}
+}
+@media (prefers-reduced-motion:reduce){.arrow span{animation:none;opacity:.8}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>EnergIA — Monitor Inteligente de Energia ⚡</h1>
+  <p class="lead">Guia da arquitetura para quem está vendo o projeto pela primeira vez: o que ele faz, como os dados caminham do sensor até o painel, por que escolhemos a técnica de ML, e um dicionário dos termos.</p>
+
+  <!-- O QUE É -->
+  <h2><span class="b">?</span> O que é o EnergIA</h2>
+  <div class="panel">
+    <p class="big">Normalmente, a conta de luz só diz o <b>total</b> gasto na casa — não <i>quanto cada aparelho</i> consome. Medir tomada por tomada seria caro e trabalhoso.</p>
+    <p class="big">O EnergIA resolve isso com <mark>NILM</mark> (monitoramento <b>não intrusivo</b> de carga): <b>um único sensor</b> mede o consumo geral e um modelo de <mark>Machine Learning</mark> descobre <b>qual aparelho</b> ligou ou desligou, pela <b>assinatura de potência</b> de cada um — mostrando, ao vivo, o aparelho, o consumo aproximado (W) e o gasto por hora (R$).</p>
+  </div>
+
+  <!-- FLUXO -->
+  <h2><span class="b">→</span> Como os dados fluem</h2>
+  <p class="lead" style="margin:-4px 0 12px">Clique em uma etapa para ver os detalhes. O fluxo é destacado automaticamente.</p>
+  <div class="pipe" id="pipe"></div>
+  <div class="detail" id="detail">
+    <h3 id="dT">Clique em uma etapa</h3>
+    <p id="dP">Cada etapa recebe os dados da anterior e entrega para a seguinte.</p>
+    <span class="tag" id="dTag" hidden></span>
+  </div>
+  <pre id="json">// mensagem que o ESP32 publica no broker (tópico energia/casa/geral)
+{"id":"energia-esp32-01","ts":1725649320,"irms":3.230,"p_estimada":410.5}</pre>
+  <div class="hint">Com o sensor de tensão (ZMPT) ativo, a mensagem também traz <code>vrms</code>, <code>p</code>, <code>s</code> e <code>fp</code>.</div>
+
+  <!-- POR QUE NILM + RF -->
+  <h2><span class="b">★</span> Por que NILM com Random Forest</h2>
+  <div class="why">
+    <div class="card2">
+      <h3>Por que NILM (um só sensor)</h3>
+      <ul>
+        <li><b>Barato e não intrusivo:</b> uma garra no quadro geral, em vez de um medidor por circuito.</li>
+        <li><b>Seguro:</b> a garra abraça o fio por indução, sem contato elétrico.</li>
+        <li><b>Por eventos/assinatura:</b> cada vez que um aparelho liga/desliga ele deixa um <b>degrau de potência</b> característico — é isso que o modelo aprende a reconhecer.</li>
+      </ul>
+    </div>
+    <div class="card2">
+      <h3>Por que Random Forest</h3>
+      <ul>
+        <li><b>Leve:</b> roda em CPU comum e em tempo real — não precisa de GPU.</li>
+        <li><b>Bom com poucos dados</b> e <b>robusto a ruído</b>, ideal para um protótipo acadêmico.</li>
+        <li><b>Interpretável:</b> dá para ver quais atributos pesaram na decisão.</li>
+        <li><b>Encaixa nos atributos tabulares</b> da janela (média, desvio, min, max…).</li>
+        <li><b>Alternativas</b> (redes neurais, <span class="mono">seq2point</span>) exigem muito mais dados e processamento → ficam como trabalho futuro.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- DICIONÁRIO -->
+  <h2><span class="b">A–Z</span> Dicionário de termos</h2>
+  <div class="glos">
+    <div class="grp">
+      <h3><span class="e">Etapa 1</span> Sensor e medição (hardware)</h3>
+      <dl class="def"><dt>Garra de corrente (SCT-013)</dt><dd>Sensor que “abraça” o fio e mede a corrente por <b>indução magnética</b>, sem tocar no cobre. Por isso é seguro e não intrusivo.</dd></dl>
+      <dl class="def"><dt>Fase e Neutro</dt><dd>Os dois condutores de um cabo. A garra precisa envolver <b>só a fase</b> — se pegar os dois juntos, os campos se cancelam e a leitura dá zero.</dd></dl>
+      <dl class="def"><dt>ESP32</dt><dd>Microcontrolador com <b>WiFi</b> embutido; lê o sensor e envia os dados pela rede. É o “cérebro” do nó de captura.</dd></dl>
+      <dl class="def"><dt>ADC</dt><dd>Conversor Analógico-Digital: transforma a tensão que o sensor gera em um <b>número</b> que o ESP32 processa.</dd></dl>
+      <dl class="def"><dt>Nó M / bias (1,65 V)</dt><dd>Ponto médio criado por um divisor de tensão. Como a corrente alternada oscila entre valores positivos e negativos, o sinal é “centralizado” em 1,65 V para o ADC conseguir lê-lo.</dd></dl>
+      <dl class="def"><dt>EmonLib</dt><dd>Biblioteca que, a partir das amostras do ADC, calcula a <b>corrente eficaz (Irms)</b> e a potência.</dd></dl>
+      <dl class="def"><dt>Irms / Potência (W)</dt><dd><b>Irms</b> = corrente eficaz, em ampères. <b>Potência</b> ≈ Irms × tensão, em watts — é o que o modelo usa.</dd></dl>
+      <dl class="def"><dt>ZMPT101B</dt><dd>Sensor de <b>tensão</b> (opcional). Com ele dá para medir potência real e fator de potência, não só a corrente.</dd></dl>
+    </div>
+    <div class="grp">
+      <h3><span class="e">Etapa 3</span> Comunicação (broker MQTT)</h3>
+      <dl class="def"><dt>MQTT</dt><dd>Protocolo de mensagens <b>leve</b>, feito para IoT. Funciona no modelo <b>publicar/assinar</b>: quem produz manda mensagens, quem precisa se inscreve para recebê-las.</dd></dl>
+      <dl class="def"><dt>Broker</dt><dd>O <b>servidor central</b> do MQTT. Recebe as mensagens de quem publica e as entrega a todos os assinantes. Aqui é o <b>Mosquitto</b>.</dd></dl>
+      <dl class="def"><dt>Mosquitto</dt><dd>Software de broker MQTT livre, rodando no PC/Raspberry (porta 1883).</dd></dl>
+      <dl class="def"><dt>Tópico</dt><dd>O “endereço” da mensagem, como <span class="mono">energia/casa/geral</span>. Quem assina esse tópico recebe tudo que for publicado nele.</dd></dl>
+      <dl class="def"><dt>Publicar / Assinar</dt><dd><b>Publicar</b>: o ESP32 envia medições ao tópico. <b>Assinar</b>: o ML e o dashboard se inscrevem e recebem essas medições.</dd></dl>
+      <dl class="def"><dt>Por que um broker?</dt><dd>Ele <b>desacopla</b> o sensor dos programas que usam os dados: vários consumidores podem ler o mesmo stream ao mesmo tempo, e cada parte pode ser trocada sem afetar as outras.</dd></dl>
+    </div>
+    <div class="grp">
+      <h3><span class="e">Geral</span> Machine Learning</h3>
+      <dl class="def"><dt>NILM</dt><dd><i>Non-Intrusive Load Monitoring</i> — descobrir o consumo de cada aparelho a partir da medição <b>total</b>, com um único sensor.</dd></dl>
+      <dl class="def"><dt>Assinatura de potência</dt><dd>O “jeito” característico com que cada aparelho consome energia (nível e variação) — o que permite diferenciá-los.</dd></dl>
+      <dl class="def"><dt>Janela e atributos</dt><dd>Um pedaço curto do sinal (ex.: 8 leituras). Dele extraímos <b>atributos</b> — média, desvio, mínimo, máximo, mediana, amplitude — que resumem o comportamento.</dd></dl>
+      <dl class="def"><dt>Random Forest</dt><dd>Modelo de ML formado por muitas <b>árvores de decisão</b> que “votam” juntas. Recebe os atributos da janela e devolve o <b>aparelho</b> mais provável.</dd></dl>
+    </div>
+  </div>
+
+  <footer>
+    EnergIA — PI IV UNIVESP (Engenharia da Computação) · NILM por assinatura de potência + Random Forest ·
+    tarifa de referência: Itanhaém/SP (Elektro).
+  </footer>
+</div>
+
+<script>
+const STAGES=[
+  {ico:"🔌",n:"Etapa 1",t:"Sensor (ESP32)",r:"garra no fio de fase",
+   det:"O ESP32 lê a garra de corrente (e, opcionalmente, o ZMPT de tensão) pelo ADC. A EmonLib calcula a corrente eficaz (Irms) e a potência. É o artefato de hardware do projeto.",
+   tag:"EmonLib · GPIO34"},
+  {ico:"📶",n:"Etapa 2",t:"WiFi",r:"rede local 2,4 GHz",
+   det:"O nó se conecta à rede WiFi e envia os dados sem fio. O código pode ser atualizado por OTA e os parâmetros por MQTT — sem reconectar o cabo USB.",
+   tag:"WiFi STA · OTA"},
+  {ico:"📨",n:"Etapa 3",t:"Broker MQTT",r:"Mosquitto",
+   det:"O broker Mosquitto recebe as mensagens JSON no tópico energia/casa/geral e as distribui a quem assina. Desacopla o sensor do processamento — vários consumidores leem o mesmo stream.",
+   tag:"Mosquitto · porta 1883"},
+  {ico:"🧠",n:"Etapa 4",t:"Machine Learning",r:"Random Forest (NILM)",
+   det:"Um consumidor Python assina o stream, monta janelas do sinal de potência, extrai atributos e o Random Forest IDENTIFICA qual aparelho está ligado.",
+   tag:"scikit-learn · RandomForest"},
+  {ico:"📊",n:"Etapa 5",t:"Dashboard",r:"aparelho + consumo + R$",
+   det:"O painel ao vivo mostra o aparelho identificado, o consumo aproximado (W), o gasto estimado por hora (R$, tarifa de Itanhaém) e a confiança do modelo.",
+   tag:"tempo real · http://localhost:8000"}
+];
+const pipe=document.getElementById("pipe");
+const dT=document.getElementById("dT"),dP=document.getElementById("dP"),dTag=document.getElementById("dTag");
+let fixed=false;
+STAGES.forEach((s,i)=>{
+  if(i>0){const a=document.createElement("div");a.className="arrow";a.innerHTML="<span>▶</span>";pipe.appendChild(a);}
+  const el=document.createElement("div");el.className="stage";el.dataset.i=i;
+  el.innerHTML=`<div class="ico">${s.ico}</div><div class="n">${s.n}</div><div class="t">${s.t}</div><div class="r">${s.r}</div>`;
+  el.addEventListener("click",()=>{fixed=true;select(i);});
+  pipe.appendChild(el);
+});
+function select(i){
+  document.querySelectorAll(".stage").forEach(e=>e.classList.toggle("active",+e.dataset.i===i));
+  const s=STAGES[i];dT.textContent=`${s.n} — ${s.t}`;dP.textContent=s.det;
+  dTag.hidden=false;dTag.textContent=s.tag;
+}
+let k=0;select(0);
+setInterval(()=>{ if(fixed)return; k=(k+1)%STAGES.length; select(k); },2300);
+</script>
+</body>
+</html>
